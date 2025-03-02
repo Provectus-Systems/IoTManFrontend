@@ -371,4 +371,4 @@ def main_page():
             create_home_content(content_container)
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(host='0.0.0.0', port=8080)
+    ui.run(host='0.0.0.0', port=3000)

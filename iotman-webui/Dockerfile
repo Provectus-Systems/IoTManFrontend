@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 # Expose the port NiceGUI runs on (8080)
-EXPOSE 8080
+EXPOSE 3000
 
 # No CMD instruction needed as it will be provided by Docker Compose
 
