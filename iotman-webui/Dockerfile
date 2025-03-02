@@ -14,5 +14,6 @@ COPY . /app
 # Expose the port NiceGUI runs on (8080)
 EXPOSE 8080
 
-# Run the NiceGUI app as a Python module
-CMD ["python", "-m", "iotman_webui.app.main"]
+# No CMD instruction needed as it will be provided by Docker Compose
+
+
