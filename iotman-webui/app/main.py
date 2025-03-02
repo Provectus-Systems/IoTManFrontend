@@ -21,20 +21,41 @@ def fetch_data(container, status_label, start_time=None, end_time=None):
             params['end_time'] = end_time.isoformat()
         
         # Make the API request with query parameters
+        status_label.text = f"Making request to {BACKEND_URL}/data..."
         response = requests.get(f"{BACKEND_URL}/data", params=params)
         response.raise_for_status()
         data = response.json()
         
-        if not data or 'items' not in data or not data['items']:
-            status_label.text = "No data available."
+        # Debug logging
+        status_label.text = f"Received response. Status: {response.status_code}, Content length: {len(response.content)} bytes"
+        
+        if not data:
+            status_label.text = "Error: Received empty response from server"
             return
+            
+        if 'items' not in data:
+            status_label.text = f"Error: Response missing 'items' key. Keys received: {list(data.keys())}"
+            return
+            
+        if not data['items']:
+            status_label.text = "No data available for the selected time range."
+            return
+            
+        # Log data details before visualization
+        item_count = len(data['items'])
+        battery_ids = set(item['battery_id'] for item in data['items'])
+        status_label.text = f"Processing {item_count} readings from {len(battery_ids)} batteries..."
             
         # Process the data for visualization
         create_visualizations(container, data, status_label, start_time, end_time)
         
         status_label.text = f"Data loaded successfully. Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+    except requests.exceptions.RequestException as e:
+        status_label.text = f"Network error: {str(e)}\nBackend URL: {BACKEND_URL}"
+    except json.JSONDecodeError as e:
+        status_label.text = f"Invalid JSON response: {str(e)}\nResponse content: {response.text[:200]}..."
     except Exception as e:
-        status_label.text = f"Error fetching data: {e}"
+        status_label.text = f"Error fetching data: {str(e)}"
         
 def create_visualizations(container, data, status_label, start_time=None, end_time=None):
     """Create visualizations based on the data"""
