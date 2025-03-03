@@ -7,6 +7,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 
+# Import our design and layout modules
+from . import design
+from . import layout
+
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:80")
 
 def fetch_data(container, status_label, start_time=None, end_time=None):
@@ -86,11 +90,10 @@ def create_visualizations(container, data, status_label, start_time=None, end_ti
             
             # Add a trace for each unique battery_id
             unique_batteries = df['battery_id'].unique()
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
             
             for i, battery_id in enumerate(unique_batteries):
                 battery_data = df[df['battery_id'] == battery_id]
-                color = colors[i % len(colors)]
+                color = design.PLOT_COLORS[i % len(design.PLOT_COLORS)]
                 
                 fig.add_trace(
                     go.Scatter(
@@ -115,64 +118,19 @@ def create_visualizations(container, data, status_label, start_time=None, end_ti
             elif end_time:
                 time_range_desc = f" (until {end_time.strftime('%Y-%m-%d %H:%M')} UTC)"
             
-            # Customize the chart
-            fig.update_layout(
-                title=f"Battery Voltage Over Time{time_range_desc}<br>({len(unique_batteries)} batteries, {total_items} readings)",
-                title_font_size=24,
-                title_x=0.5,  # Center the title
-                plot_bgcolor='rgba(32, 32, 40, 1)',  # Dark background
-                paper_bgcolor='rgba(32, 32, 40, 1)',
-                font=dict(color='white'),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                ),
-                margin=dict(l=20, r=20, t=80, b=20),
-                xaxis=dict(
-                    title="Time (UTC)",
-                    gridcolor='rgba(80, 80, 90, 0.3)',
-                    showline=True,
-                    linecolor='rgba(180, 180, 190, 0.5)',
-                    tickfont=dict(size=12),
-                ),
-                yaxis=dict(
-                    title="Voltage (V)",
-                    gridcolor='rgba(80, 80, 90, 0.3)',
-                    showline=True,
-                    linecolor='rgba(180, 180, 190, 0.5)',
-                    tickfont=dict(size=12),
-                    ticksuffix=' V',
-                ),
-                hovermode="x unified",
-            )
+            # Get plot layout from design module
+            title_desc = f"({len(unique_batteries)} batteries, {total_items} readings)"
+            plot_layout = design.get_plot_layout("Battery Voltage Over Time" + time_range_desc, title_desc)
+            fig.update_layout(**plot_layout)
             
-            # Restore the range slider with time selector buttons
-            fig.update_xaxes(
-                rangeslider_visible=True,
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=15, label="15m", step="minute", stepmode="backward"),
-                        dict(count=1, label="1h", step="hour", stepmode="backward"),
-                        dict(count=12, label="12h", step="hour", stepmode="backward"),
-                        dict(count=1, label="1d", step="day", stepmode="backward"),
-                        dict(count=7, label="1w", step="day", stepmode="backward"),
-                        dict(step="all", label="All")
-                    ]),
-                    bgcolor='rgba(60, 60, 70, 0.7)',
-                    activecolor='rgba(0, 120, 255, 0.7)',
-                )
-            )
+            # Update x-axis with time selectors
+            fig.update_xaxes(**design.get_time_axis_config())
             
             # Create plot
             plot = ui.plotly(fig).classes('w-full h-96 mt-4')
             
             # Create summary stats card
-            with ui.card().classes('w-full mt-4 p-4 bg-gray-800'):
-                ui.label("Battery Summary").classes("text-xl font-bold mb-4")
-                
+            with layout.create_card("Battery Summary"):
                 # Calculate stats
                 summary_rows = []
                 for battery_id in unique_batteries:
@@ -209,19 +167,68 @@ def create_visualizations(container, data, status_label, start_time=None, end_ti
 # Create page content functions
 def create_home_content(container):
     with container:
-        ui.label("Welcome to IoTMan").classes("text-3xl font-bold mb-4")
+        ui.label("Welcome to IoTMan").classes(design.CSS_CLASSES['page_title'])
         ui.label("A simple IoT management dashboard").classes("text-xl mb-6")
         
-        with ui.card().classes("p-4 bg-gray-800"):
-            ui.label("Getting Started").classes("text-2xl mb-2")
+        # Feature highlights
+        with ui.element('div').classes('grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'):
+            with layout.create_card(full_width=False):
+                ui.icon('speed', size='xl').classes('mb-2 text-blue-500')
+                ui.label("Real-time Monitoring").classes('text-lg font-semibold mb-2')
+                ui.label("Monitor your IoT devices in real-time with automatic data refresh.").classes('text-gray-600')
+                
+            with layout.create_card(full_width=False):
+                ui.icon('notifications', size='xl').classes('mb-2 text-green-500')
+                ui.label("Alerts & Notifications").classes('text-lg font-semibold mb-2')
+                ui.label("Set up custom alerts to be notified when values exceed thresholds.").classes('text-gray-600')
+                
+            with layout.create_card(full_width=False):
+                ui.icon('trending_up', size='xl').classes('mb-2 text-purple-500')
+                ui.label("Data Analytics").classes('text-lg font-semibold mb-2')
+                ui.label("Analyze historical data to identify patterns and trends.").classes('text-gray-600')
+
+        with layout.create_card("Getting Started"):
             ui.label("Use the sidebar to navigate between different sections:").classes("mb-2")
-            ui.label("• Home: This welcome page").classes("mb-1")
-            ui.label("• Dashboard: View the latest IoT device logs").classes("mb-1")
-            ui.label("• Settings: Configure your dashboard preferences").classes("mb-1")
+            
+            with ui.element('div').classes('pl-4'):
+                with ui.element('div').classes('flex items-center mb-2'):
+                    ui.icon('home', size='sm').classes('mr-2 text-indigo-500')
+                    ui.label("Home: This welcome page").classes('text-gray-700')
+                
+                with ui.element('div').classes('flex items-center mb-2'):
+                    ui.icon('dashboard', size='sm').classes('mr-2 text-indigo-500')
+                    ui.label("Dashboard: View the latest IoT device logs").classes('text-gray-700')
+                
+                with ui.element('div').classes('flex items-center mb-2'):
+                    ui.icon('settings', size='sm').classes('mr-2 text-indigo-500')
+                    ui.label("Settings: Configure your dashboard preferences").classes('text-gray-700')
 
 def create_dashboard_content(container):
     with container:
-        ui.label("Dashboard").classes("text-3xl font-bold mb-4")
+        # Create tabs for different dashboard views
+        tabs, tab_elements = layout.create_tabs([
+            {'name': 'overview', 'label': 'Overview', 'icon': 'dashboard'},
+            {'name': 'devices', 'label': 'Devices', 'icon': 'devices'},
+            {'name': 'analytics', 'label': 'Analytics', 'icon': 'analytics'}
+        ], active_tab='overview')
+        
+        # Tab content containers
+        overview_container = ui.element('div').classes('mt-4')
+        devices_container = ui.element('div').classes('mt-4')
+        analytics_container = ui.element('div').classes('mt-4')
+        
+        # Function to switch tab content
+        def switch_tab(e):
+            tab_name = e.value
+            overview_container.set_visibility(tab_name == 'overview')
+            devices_container.set_visibility(tab_name == 'devices')
+            analytics_container.set_visibility(tab_name == 'analytics')
+        
+        tabs.on('value_change', switch_tab)
+        
+        # Initial visibility
+        devices_container.set_visibility(False)
+        analytics_container.set_visibility(False)
         
         # Status label
         status_label = ui.label("Loading data...").classes("mb-2")
@@ -246,150 +253,114 @@ def create_dashboard_content(container):
                 
                 fetch_data(data_viz_container, status_label, start_time=start_time, end_time=now)
         
-        # Time range selector at the top of page
-        with ui.card().classes('w-full mb-4 p-4 bg-gray-800'):
-            ui.label("Time Range").classes("text-xl font-bold mb-2")
+        # Overview Tab Content
+        with overview_container:
+            # Time range selector
+            layout.create_time_range_selector(refresh_with_time_range)
             
-            with ui.row().classes('gap-2 flex-wrap'):
-                ui.button("Last 15 Minutes", on_click=lambda: refresh_with_time_range(15, 'minute')).classes("bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded")
-                ui.button("Last Hour", on_click=lambda: refresh_with_time_range(1, 'hour')).classes("bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1 rounded")  # Default selected
-                ui.button("Last 12 Hours", on_click=lambda: refresh_with_time_range(12, 'hour')).classes("bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded")
-                ui.button("Last Day", on_click=lambda: refresh_with_time_range(1, 'day')).classes("bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded")
-                ui.button("Last Week", on_click=lambda: refresh_with_time_range(7, 'day')).classes("bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded")
-                ui.button("All Data", on_click=lambda: refresh_with_time_range(None, None)).classes("bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-1 rounded")
-                
-                # Refresh button
-                ui.button("Refresh", on_click=lambda: refresh_with_time_range(1, 'hour'), icon='refresh').classes("ml-auto bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1 rounded")
+            # Data visualization container
+            data_viz_container = ui.element('div').classes('w-full mt-4')
+            
+            # Auto-load data with last hour by default
+            ui.timer(0.1, lambda: refresh_with_time_range(1, 'hour'), once=True)
         
-        # Data visualization container
-        data_viz_container = ui.element('div').classes('w-full mt-4')
+        # Devices Tab Content
+        with devices_container:
+            ui.label("Device Management").classes(design.CSS_CLASSES['page_title'])
+            
+            with layout.create_card("Connected Devices"):
+                ui.label("This feature is coming soon").classes("text-gray-500 italic")
         
-        # Auto-load data with last hour by default
-        ui.timer(0.1, lambda: refresh_with_time_range(1, 'hour'), once=True)
+        # Analytics Tab Content
+        with analytics_container:
+            ui.label("Data Analytics").classes(design.CSS_CLASSES['page_title'])
+            
+            with layout.create_card("Historical Analysis"):
+                ui.label("This feature is coming soon").classes("text-gray-500 italic")
 
 def create_settings_content(container):
     with container:
-        ui.label("Dashboard Settings").classes("text-3xl font-bold mb-4")
+        ui.label("Dashboard Settings").classes(design.CSS_CLASSES['page_title'])
         
-        with ui.card().classes("p-4 bg-gray-800 mb-4"):
-            ui.label("Theme Preferences").classes("text-xl font-bold mb-2")
+        # Create tabs for different settings categories
+        tabs, tab_elements = layout.create_tabs([
+            {'name': 'general', 'label': 'General', 'icon': 'tune'},
+            {'name': 'notifications', 'label': 'Notifications', 'icon': 'notifications'},
+            {'name': 'advanced', 'label': 'Advanced', 'icon': 'code'}
+        ], active_tab='general')
+        
+        # Tab content containers
+        general_container = ui.element('div').classes('mt-4')
+        notifications_container = ui.element('div').classes('mt-4')
+        advanced_container = ui.element('div').classes('mt-4')
+        
+        # Function to switch tab content
+        def switch_tab(e):
+            tab_name = e.value
+            general_container.set_visibility(tab_name == 'general')
+            notifications_container.set_visibility(tab_name == 'notifications')
+            advanced_container.set_visibility(tab_name == 'advanced')
+        
+        tabs.on('value_change', switch_tab)
+        
+        # Initial visibility
+        notifications_container.set_visibility(False)
+        advanced_container.set_visibility(False)
+        
+        # General Settings Tab
+        with general_container:
+            with layout.create_card("Theme Preferences"):
+                dark_mode = ui.switch("Dark Mode", value=True).classes("mb-4")
+                
+                ui.label("Refresh Interval").classes("text-lg mb-2")
+                interval = ui.slider(min=5, max=60, value=30, step=5).classes("mb-4")
+                ui.label().bind_text_from(interval, 'value', lambda v: f'Refresh every {v} seconds')
             
-            dark_mode = ui.switch("Dark Mode", value=True).classes("mb-4")
-            
-            ui.label("Refresh Interval").classes("text-lg mb-2")
-            interval = ui.slider(min=5, max=60, value=30, step=5).classes("mb-4")
-            ui.label().bind_text_from(interval, 'value', lambda v: f'Refresh every {v} seconds')
-            
-            ui.label("Notification Settings").classes("text-xl font-bold mb-2")
-            ui.checkbox("Enable alert sounds").classes("mb-2")
-            ui.checkbox("Show desktop notifications").classes("mb-2")
-            ui.checkbox("Email critical alerts").classes("mb-2")
-            
-            ui.button("Save Settings").classes("bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded mt-4")
-            
-        with ui.card().classes("p-4 bg-gray-800"):
-            ui.label("Advanced Options").classes("text-xl font-bold mb-2")
-            ui.button("Reset to Defaults").classes("bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded")
-            ui.button("Export Configuration").classes("bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded ml-2")
+                ui.button("Save Settings").classes(design.CSS_CLASSES['primary_button'])
+        
+        # Notifications Tab
+        with notifications_container:
+            with layout.create_card("Notification Settings"):
+                ui.checkbox("Enable alert sounds").classes("mb-2")
+                ui.checkbox("Show desktop notifications").classes("mb-2")
+                ui.checkbox("Email critical alerts").classes("mb-2")
+                
+                ui.button("Save Settings").classes(design.CSS_CLASSES['primary_button'])
+        
+        # Advanced Tab
+        with advanced_container:
+            with layout.create_card("Advanced Options"):
+                ui.button("Reset to Defaults").classes(design.CSS_CLASSES['danger_button'])
+                ui.button("Export Configuration").classes(design.CSS_CLASSES['success_button'] + " ml-2")
 
 @ui.page("/")
 def main_page():
-    # Use custom CSS with classes instead of IDs
-    ui.add_head_html("""
-    <style>
-    body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-    }
-    .app-container {
-        display: flex;
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-    }
-    .sidebar {
-        width: 220px;
-        min-width: 220px;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        background-color: #1f2937;
-        padding: 1rem;
-    }
-    .content-area {
-        flex: 1;
-        height: 100vh;
-        padding: 2rem;
-        overflow-y: auto;
-        background-color: #111827;
-    }
-    </style>
-    """)
+    # Create app layout using our layout module
+    content_container, nav_items, update_nav_active = layout.create_app_layout()
     
-    # Create a content container reference that will be available to all functions
-    content_container = None
-    
-    # Main container using flexbox
-    with ui.element('div').classes('app-container text-white').style('display: flex; width: 100vw; height: 100vh;'):
-        # Sidebar
-        with ui.element('div').classes('sidebar'):
-            ui.label("IoTMan").classes("text-2xl font-bold mb-6 text-center")
-            
-            # Navigation links
-            nav_items = {}
-            
-            # Function to update active button
-            def update_nav_active(active_page):
-                for page, btn in nav_items.items():
-                    if page == active_page:
-                        btn.classes('bg-blue-600')
-                        btn.classes(remove='bg-gray-700 hover:bg-gray-600')
-                    else:
-                        btn.classes('bg-gray-700 hover:bg-gray-600')
-                        btn.classes(remove='bg-blue-600')
-            
-            # Define navigation functions using nonlocal to access content_container
-            def show_home():
-                nonlocal content_container
-                content_container.clear()
-                create_home_content(content_container)
-                update_nav_active('Home')
-                
-            def show_dashboard():
-                nonlocal content_container
-                content_container.clear()
-                create_dashboard_content(content_container)
-                update_nav_active('Dashboard')
-            
-            def show_settings():
-                nonlocal content_container
-                content_container.clear()
-                create_settings_content(content_container)
-                update_nav_active('Settings')
-            
-            # Home button
-            home_btn = ui.button('Home', on_click=show_home).classes('w-full mb-2 text-left pl-4 py-2 bg-blue-600 rounded')
-            nav_items['Home'] = home_btn
-            
-            # Dashboard button
-            dashboard_btn = ui.button('Dashboard', on_click=show_dashboard).classes('w-full mb-2 text-left pl-4 py-2 bg-gray-700 hover:bg-gray-600 rounded')
-            nav_items['Dashboard'] = dashboard_btn
-            
-            # Settings button
-            settings_btn = ui.button('Settings', on_click=show_settings).classes('w-full mb-2 text-left pl-4 py-2 bg-gray-700 hover:bg-gray-600 rounded')
-            nav_items['Settings'] = settings_btn
-            
-            # Bottom section of sidebar - spacer and version
-            with ui.element('div').style('flex-grow: 1;'):
-                ui.label("Version 1.0.0").classes("text-gray-400 text-xs text-center mt-auto")
+    # Define navigation functions
+    def show_home():
+        content_container.clear()
+        create_home_content(content_container)
+        update_nav_active('Home')
         
-        # Content area - separate from the sidebar
-        with ui.element('div').classes('content-area'):
-            # Create a container for the content and store it for later use
-            content_container = ui.element('div')
-            # Initialize with home content
-            create_home_content(content_container)
+    def show_dashboard():
+        content_container.clear()
+        create_dashboard_content(content_container)
+        update_nav_active('Dashboard')
+    
+    def show_settings():
+        content_container.clear()
+        create_settings_content(content_container)
+        update_nav_active('Settings')
+    
+    # Set button click handlers
+    nav_items['Home'].on_click(show_home)
+    nav_items['Dashboard'].on_click(show_dashboard)
+    nav_items['Settings'].on_click(show_settings)
+    
+    # Initialize with home content
+    show_home()
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(host='0.0.0.0', port=3000)
